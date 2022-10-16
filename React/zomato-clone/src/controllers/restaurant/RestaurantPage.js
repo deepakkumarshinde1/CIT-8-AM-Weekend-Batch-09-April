@@ -3,11 +3,21 @@ import Header from "../Header";
 import { useParams } from "react-router-dom";
 import { useEffect } from "react";
 import axios from "axios";
+import jwt_decode from "jwt-decode";
+import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
+import { Carousel } from "react-responsive-carousel";
 
 function RestaurantPage() {
+  let [user, setUser] = useState(false);
   let [tab, setTab] = useState(true);
   let [menuItems, setMenuItems] = useState([]);
   let [finalPrice, setFinalPrice] = useState(0);
+  let [paymentUserDetails, setPaymentUserDetails] = useState({
+    name: "",
+    email: "",
+    mobile: "",
+    address: "",
+  });
   let { id } = useParams();
   let initValue = {
     aggregate_rating: 0,
@@ -27,6 +37,17 @@ function RestaurantPage() {
     _id: "0",
   };
   let [restaurant, setRestaurant] = useState({ ...initValue });
+  let readToken = async () => {
+    // read from local storage
+    try {
+      let token = localStorage.getItem("token");
+      token = await jwt_decode(token);
+      setUser({ ...token });
+    } catch (error) {
+      localStorage.removeItem("token");
+      setUser(false);
+    }
+  };
   let addQty = (id) => {
     let _menuItems = [...menuItems];
     _menuItems[id].qty += 1;
@@ -83,6 +104,15 @@ function RestaurantPage() {
   };
 
   let loadPaymentGateway = async () => {
+    if (
+      paymentUserDetails.name === "" ||
+      paymentUserDetails.email === "" ||
+      paymentUserDetails.mobile === ""
+    ) {
+      alert("Please fill all details");
+      return false;
+    }
+
     let isLoaded = await loadScript();
     if (isLoaded === false) {
       alert("Unable to load script");
@@ -125,20 +155,74 @@ function RestaurantPage() {
         }
       },
       prefill: {
-        name: "Gaurav Kumar",
-        email: "gaurav.kumar@example.com",
-        contact: "9999999999",
+        name: paymentUserDetails.name,
+        email: paymentUserDetails.email,
+        contact: paymentUserDetails.mobile,
       },
     };
     var paymentObject = window.Razorpay(options);
     paymentObject.open();
   };
 
+  let updatePaymentUserDetails = (event) => {
+    let { name, value } = event.target;
+
+    let _paymentUserDetails = { ...paymentUserDetails };
+    _paymentUserDetails[name] = value;
+
+    setPaymentUserDetails({ ..._paymentUserDetails });
+  };
+
+  // mounting
   useEffect(() => {
     getRestaurantDetailsById(id);
+    readToken();
   }, []);
+
+  // updating
+  useEffect(() => {
+    if (user === false) {
+      setPaymentUserDetails({
+        name: "",
+        email: "",
+        mobile: "",
+        address: "",
+      });
+    } else {
+      setPaymentUserDetails({
+        name: user.name,
+        email: user.email,
+        mobile: "",
+        address: "",
+      });
+    }
+  }, [user]);
+
   return (
     <>
+      <div
+        className="modal fade"
+        id="slideShow"
+        tabIndex="-1"
+        aria-labelledby="staticBackdropLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-lg " style={{ height: "75vh" }}>
+          <div className="modal-content">
+            <div className="modal-body h-75">
+              <Carousel showThumbs={false} infiniteLoop={true}>
+                {restaurant.thumb.map((value, index) => {
+                  return (
+                    <div key={index} className="w-100">
+                      <img src={"/images/" + value} />
+                    </div>
+                  );
+                })}
+              </Carousel>
+            </div>
+          </div>
+        </div>
+      </div>
       <div
         className="modal fade"
         id="exampleModalToggle"
@@ -256,6 +340,9 @@ function RestaurantPage() {
                   className="form-control"
                   id="exampleFormControlInput1"
                   placeholder="Enter User Name"
+                  name="name"
+                  value={paymentUserDetails.name}
+                  onChange={updatePaymentUserDetails}
                 />
               </div>
               <div className="mb-3">
@@ -270,6 +357,9 @@ function RestaurantPage() {
                   className="form-control"
                   id="exampleFormControlInput1"
                   placeholder="Enter Mobile Number"
+                  name="mobile"
+                  onChange={updatePaymentUserDetails}
+                  value={paymentUserDetails.mobile}
                 />
               </div>
               <div className="mb-3">
@@ -284,6 +374,9 @@ function RestaurantPage() {
                   className="form-control"
                   id="exampleFormControlInput1"
                   placeholder="name@example.com"
+                  value={paymentUserDetails.email}
+                  name="email"
+                  onChange={updatePaymentUserDetails}
                 />
               </div>
               <div className="mb-3">
@@ -298,6 +391,9 @@ function RestaurantPage() {
                   id="exampleFormControlTextarea1"
                   rows="3"
                   placeholder="Enter Address"
+                  name="address"
+                  onChange={updatePaymentUserDetails}
+                  value={paymentUserDetails.address}
                 ></textarea>
               </div>
             </div>
@@ -328,7 +424,11 @@ function RestaurantPage() {
               style={{ height: "80vh" }}
             />
           </div>
-          <button className="position-absolute bottom-0 end-0 mb-2 me-4 btn btn-outline-light">
+          <button
+            className="position-absolute bottom-0 end-0 mb-2 me-4 btn btn-outline-light"
+            data-bs-toggle="modal"
+            data-bs-target="#slideShow"
+          >
             Image Gallery
           </button>
         </div>
@@ -345,15 +445,21 @@ function RestaurantPage() {
                 Contact
               </li>
             </ul>
-            <button
-              className="btn btn-danger  "
-              data-bs-toggle="modal"
-              href="#exampleModalToggle"
-              role="button"
-              onClick={getMenuList}
-            >
-              Place Online Order
-            </button>
+            {user === false ? (
+              <button className="btn btn-danger" disabled>
+                Please Login To Place Order
+              </button>
+            ) : (
+              <button
+                className="btn btn-danger  "
+                data-bs-toggle="modal"
+                href="#exampleModalToggle"
+                role="button"
+                onClick={getMenuList}
+              >
+                Place Online Order
+              </button>
+            )}
           </div>
           {/* overview */}
           {tab ? (

@@ -1,6 +1,6 @@
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import jwt_decode from "jwt-decode";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function Header(props) {
   let { color } = props;
@@ -10,13 +10,15 @@ function Header(props) {
     try {
       let token = localStorage.getItem("token");
       token = await jwt_decode(token);
-      return token;
+      setUser({ ...token });
     } catch (error) {
       localStorage.removeItem("token");
-      return false;
+      setUser(false);
     }
   };
-  let [user, setUser] = useState(readToken());
+
+  let [user, setUser] = useState(false);
+
   let onSuccess = (credentialResponse) => {
     let token = credentialResponse.credential;
     // storage
@@ -29,6 +31,15 @@ function Header(props) {
     console.log("Login Failed");
     alert("Google login Error");
   };
+  let logout = () => {
+    localStorage.removeItem("token");
+    alert("Logout successfully");
+    window.location.assign("/");
+  };
+
+  useEffect(() => {
+    readToken();
+  }, []);
   return (
     <>
       <GoogleOAuthProvider clientId="157052762268-ourfudmb451jjktbi19kne7r3iri8r1p.apps.googleusercontent.com">
@@ -64,19 +75,31 @@ function Header(props) {
           <div className="col-10 d-flex justify-content-between py-2">
             {color === "" ? <p></p> : <p className="m-0 brand">Z</p>}
 
-            <div>
-              <button
-                className="btn text-white"
-                data-bs-toggle="modal"
-                data-bs-target="#modal-login"
-              >
-                Login
-              </button>
-              <button className="btn btn-outline-light">
-                <i className="fa fa-search" aria-hidden="true"></i>Create a
-                Account
-              </button>
-            </div>
+            {user === false ? (
+              <div>
+                <button
+                  className="btn text-white"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modal-login"
+                >
+                  Login
+                </button>
+                <button className="btn btn-outline-light">
+                  <i className="fa fa-search" aria-hidden="true"></i>Create a
+                  Account
+                </button>
+              </div>
+            ) : (
+              <div>
+                <span className="text-white me-2 fw-bold">
+                  Welcome, {user.name}
+                </span>
+                <button className="btn btn-outline-light" onClick={logout}>
+                  <i className="fa fa-sign-out me-1" aria-hidden="true"></i>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </GoogleOAuthProvider>
